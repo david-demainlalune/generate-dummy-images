@@ -15,7 +15,7 @@ func randRange(min int, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-func generateImage(width int, height int, name string) {
+func generateImage(width int, height int, name string, c chan<- string) {
 	im := image.NewRGBA(image.Rect(0, 0, width, height))
 	b := im.Bounds()
 	for y := b.Min.Y; y < b.Max.Y; y++ {
@@ -27,18 +27,22 @@ func generateImage(width int, height int, name string) {
 	defer file.Close()
 
 	jpeg.Encode(file, im, &jpeg.Options{jpeg.DefaultQuality})
-
-	fmt.Printf("generated %s\n", name)
+	c <- fmt.Sprintf("generated %s\n", name)
 }
 
 func generateImages(count int, minWidth int, maxWidth int, minHeight int, maxHeight int, baseName string) {
+	c := make(chan string)
 	tabCount := len(fmt.Sprintf("%d", count))
-	fmt.Printf("%d\n", tabCount)
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("%s%0*d.jpg", baseName, tabCount, i)
 		width := randRange(minWidth, maxWidth)
 		height := randRange(minHeight, maxHeight)
-		generateImage(width, height, name)
+		go generateImage(width, height, name, c)
+
+	}
+
+	for i := 0; i < count; i++ {
+		fmt.Println(<-c)
 	}
 }
 
@@ -63,5 +67,10 @@ func main() {
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
+
+	start := time.Now()
+
 	generateImages(*count, *minWidth, *maxWidth, *minHeight, *maxHeight, *baseName)
+
+	fmt.Printf("%.2fs total\n", time.Since(start).Seconds())
 }
