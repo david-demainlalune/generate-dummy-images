@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	"math/rand"
 	"os"
@@ -18,14 +17,29 @@ func randRange(min int, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-func generateImage(width int, height int, name string, c chan<- string) {
-	im := image.NewRGBA(image.Rect(0, 0, width, height))
-	b := im.Bounds()
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			im.Set(x, y, color.RGBA{255, 255, 255, 255})
-		}
+func generateWhitePixels(width, height int) (whitePixels []uint8) {
+	whitePixels = make([]uint8, width*height*4)
+
+	for i, _ := range whitePixels {
+		whitePixels[i] = 255
 	}
+	return
+}
+
+// TODO: extract whitePixels as a variable in a clojure
+func generateWhiteImage(width, height int, whitePixels []uint8) *image.RGBA {
+	pix := whitePixels[:width*height*4]
+	stride := width * 4
+	rectangle := image.Rect(0, 0, width, height)
+
+	result := image.RGBA{pix, stride, rectangle}
+
+	return &result
+}
+
+func generateImage(width int, height int, name string, whitePixels []uint8, c chan<- string) {
+	im := generateWhiteImage(width, height, whitePixels)
+
 	file, _ := os.Create(name)
 	defer file.Close()
 
@@ -36,11 +50,12 @@ func generateImage(width int, height int, name string, c chan<- string) {
 func generateImages(count int, minWidth int, maxWidth int, minHeight int, maxHeight int, baseName string) {
 	c := make(chan string)
 	tabCount := len(fmt.Sprintf("%d", count))
+	whitePixels := generateWhitePixels(maxWidth, maxHeight)
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("%s%0*d.jpg", baseName, tabCount, i)
 		width := randRange(minWidth, maxWidth)
 		height := randRange(minHeight, maxHeight)
-		go generateImage(width, height, name, c)
+		go generateImage(width, height, name, whitePixels, c)
 
 	}
 
